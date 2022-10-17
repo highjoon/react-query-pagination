@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { MAX_POST_SIZE, PAGE_LIMIT } from "../../constants/posts";
 import useGetPost from "../../hooks/usePost";
 import fetchPosts from "../../utils/fetchPosts";
 import styles from "./Home.module.css";
-import { MAX_POST_SIZE, PAGE_LIMIT } from "../../constants/posts";
 
 interface IPost {
 	userId: number;
