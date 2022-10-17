@@ -1,13 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import useGetPost from "../../hooks/usePost";
+import fetchPosts from "../../utils/fetchPosts";
 import styles from "./Home.module.css";
-
-const MAX_POST_SIZE = 23;
-const INITIAL_LIMIT = 6;
-const INITIAL_PAGES = Array.from(
-	{ length: MAX_POST_SIZE > INITIAL_LIMIT ? INITIAL_LIMIT : MAX_POST_SIZE },
-	(_, i) => i + 1
-);
+import { MAX_POST_SIZE, PAGE_LIMIT } from "../../constants/posts";
 
 interface IPost {
 	userId: number;
@@ -16,71 +12,59 @@ interface IPost {
 	body: string;
 }
 
-async function fetchPosts(pageNum: number): Promise<IPost[]> {
-	const response = await fetch(`https://jsonplaceholder.typicode.com/posts?_limit=4&_page=${pageNum}`);
-	return response.json();
-}
-
 const HomeView = () => {
+	const [pageBlock, setPageBlock] = useState<number>(0);
 	const [currentPage, setCurrentPage] = useState<number>(1);
-	const [selectedPost, setSelectedPost] = useState<IPost | null>(null);
-	const [limit, setLimit] = useState<number>(INITIAL_LIMIT);
-	const [pages, setPages] = useState<number[]>(INITIAL_PAGES);
+	const [selectedPost, setSelectedPost] = useState<IPost>();
+
+	const { data, isError, error, isLoading } = useGetPost({
+		currentPage,
+		options: { staleTime: 2000, keepPreviousData: true },
+	});
+
+	const pageIndex = pageBlock * PAGE_LIMIT;
+	const initializedPages = Array.from({ length: MAX_POST_SIZE }, (_, i) => i + 1);
+	const PAGES = initializedPages.slice(pageIndex, Number(PAGE_LIMIT) + pageIndex);
 
 	const queryClient = useQueryClient();
 
-	useEffect(() => {
-		if (currentPage > limit) {
-			setLimit((prev) => prev + INITIAL_LIMIT);
-		}
+	const moveToFirstPage = useCallback(() => {
+		setPageBlock(0);
+		setCurrentPage(1);
+	}, []);
 
-		if (limit - currentPage === INITIAL_LIMIT) {
-			setLimit((prev) => prev - INITIAL_LIMIT);
-		}
-	}, [currentPage, limit]);
+	const moveToLastPage = useCallback(() => {
+		setPageBlock(Math.ceil(MAX_POST_SIZE / PAGE_LIMIT) - 1);
+		setCurrentPage(MAX_POST_SIZE);
+	}, []);
 
-	useEffect(() => {
-		if (currentPage > limit) {
-			setPages(
-				Array.from(
-					{
-						length: MAX_POST_SIZE - currentPage > INITIAL_LIMIT ? INITIAL_LIMIT : MAX_POST_SIZE - currentPage + 1,
-					},
-					(_, i) => i + currentPage
-				)
-			);
-		} else {
-			setPages(
-				Array.from(
-					{
-						length: limit > MAX_POST_SIZE ? limit - MAX_POST_SIZE : INITIAL_LIMIT,
-					},
-					(_, i) => i + limit - (INITIAL_LIMIT - 1)
-				)
-			);
+	const moveToPrevPage = useCallback(() => {
+		if (currentPage <= 1) return;
+		if (currentPage - 1 <= PAGE_LIMIT * pageBlock) {
+			setPageBlock((prev) => prev - 1);
 		}
-	}, [currentPage, limit]);
+		setCurrentPage((prev) => prev - 1);
+	}, [currentPage, pageBlock]);
+
+	const moveToNextPage = useCallback(() => {
+		if (currentPage >= MAX_POST_SIZE) return;
+		if (PAGE_LIMIT * Number(pageBlock + 1) < Number(currentPage + 1)) {
+			setPageBlock((prev) => prev + 1);
+		}
+		setCurrentPage((prev) => prev + 1);
+	}, [currentPage, pageBlock]);
 
 	useEffect(() => {
 		if (currentPage < MAX_POST_SIZE) {
 			const nextPage = currentPage + 1;
-			queryClient.prefetchQuery(["post", nextPage], () => fetchPosts(nextPage));
+			queryClient.prefetchQuery(["posts", nextPage], () => fetchPosts(nextPage));
 		}
 
-		if (currentPage > 1) {
+		if (currentPage > 2) {
 			const prevPage = currentPage - 1;
-			queryClient.prefetchQuery(["post", prevPage], () => fetchPosts(prevPage));
+			queryClient.prefetchQuery(["posts", prevPage], () => fetchPosts(prevPage));
 		}
 	}, [currentPage, queryClient]);
-
-	const { data, isError, error, isLoading } = useQuery<IPost[], Error>(
-		["posts", currentPage],
-		() => fetchPosts(currentPage),
-		{
-			staleTime: 2000,
-			keepPreviousData: true,
-		}
-	);
 
 	if (isLoading) return <h3>Loading...</h3>;
 	if (isError)
@@ -90,8 +74,6 @@ const HomeView = () => {
 				{error.message}
 			</>
 		);
-
-	console.log("currentPage:", currentPage, "limit:", limit, "limit-currentPage", limit - currentPage);
 
 	return (
 		<>
@@ -103,29 +85,27 @@ const HomeView = () => {
 				))}
 			</ul>
 			<div>
-				<button
-					className={styles.btn}
-					disabled={currentPage <= 1}
-					onClick={() => setCurrentPage((prevValue) => prevValue - 1)}
-				>
+				<button className={styles.btn} disabled={currentPage <= 1} onClick={moveToFirstPage}>
+					FIRST
+				</button>
+				<button className={styles.btn} disabled={currentPage <= 1} onClick={moveToPrevPage}>
 					PREV
 				</button>
-				{pages.map((page) => (
+				{PAGES.map((page) => (
 					<button
 						className={styles.btn}
-						disabled={currentPage === page}
 						key={page}
+						disabled={currentPage === page}
 						onClick={() => setCurrentPage(page)}
 					>
 						{page}
 					</button>
 				))}
-				<button
-					className={styles.btn}
-					disabled={currentPage >= MAX_POST_SIZE}
-					onClick={() => setCurrentPage((prevValue) => prevValue + 1)}
-				>
+				<button className={styles.btn} disabled={currentPage >= MAX_POST_SIZE} onClick={moveToNextPage}>
 					NEXT
+				</button>
+				<button className={styles.btn} disabled={currentPage >= MAX_POST_SIZE} onClick={moveToLastPage}>
+					LAST
 				</button>
 			</div>
 		</>
