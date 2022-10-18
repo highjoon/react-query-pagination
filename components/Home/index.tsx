@@ -19,7 +19,7 @@ const HomeView = () => {
 
 	const { data, isError, error, isLoading } = useGetPost({
 		currentPage,
-		options: { staleTime: 2000, keepPreviousData: true },
+		options: { staleTime: 5000, keepPreviousData: true },
 	});
 
 	const pageIndex = pageBlock * PAGE_LIMIT;
@@ -57,12 +57,12 @@ const HomeView = () => {
 	useEffect(() => {
 		if (currentPage < MAX_POST_SIZE) {
 			const nextPage = currentPage + 1;
-			queryClient.prefetchQuery(["posts", nextPage], () => fetchPosts(nextPage));
+			queryClient.prefetchQuery(["posts", nextPage], () => fetchPosts(nextPage), { staleTime: 5000 });
 		}
 
 		if (currentPage > 2) {
 			const prevPage = currentPage - 1;
-			queryClient.prefetchQuery(["posts", prevPage], () => fetchPosts(prevPage));
+			queryClient.prefetchQuery(["posts", prevPage], () => fetchPosts(prevPage), { staleTime: 5000 });
 		}
 	}, [currentPage, queryClient]);
 
@@ -78,7 +78,7 @@ const HomeView = () => {
 	return (
 		<>
 			<ul>
-				{data.map((post) => (
+				{data?.map((post) => (
 					<li key={post.id} className={styles.title} onClick={() => setSelectedPost(post)}>
 						{post.title}
 					</li>
