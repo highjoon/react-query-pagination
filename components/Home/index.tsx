@@ -38,20 +38,22 @@ const HomeView = () => {
 		setCurrentPage(MAX_POST_SIZE);
 	}, []);
 
-	const moveToPrevPage = useCallback(() => {
+	const moveToPrevBlock = useCallback(() => {
 		if (currentPage <= 1) return;
-		if (currentPage - 1 <= PAGE_LIMIT * pageBlock) {
-			setPageBlock((prev) => prev - 1);
-		}
-		setCurrentPage((prev) => prev - 1);
+		setPageBlock((prev) => (prev <= 1 ? 0 : prev - 1));
+		setCurrentPage(pageBlock <= 1 ? 1 : (pageBlock - 1) * PAGE_LIMIT + 1);
 	}, [currentPage, pageBlock]);
 
-	const moveToNextPage = useCallback(() => {
+	const moveToNextBlock = useCallback(() => {
 		if (currentPage >= MAX_POST_SIZE) return;
-		if (PAGE_LIMIT * Number(pageBlock + 1) < Number(currentPage + 1)) {
-			setPageBlock((prev) => prev + 1);
-		}
-		setCurrentPage((prev) => prev + 1);
+		setPageBlock((prev) =>
+			prev >= Math.ceil(MAX_POST_SIZE / PAGE_LIMIT) - 1 ? Math.ceil(MAX_POST_SIZE / PAGE_LIMIT) - 1 : prev + 1
+		);
+		setCurrentPage(
+			pageBlock >= Math.ceil(MAX_POST_SIZE / PAGE_LIMIT) - 1
+				? (Math.ceil(MAX_POST_SIZE / PAGE_LIMIT) - 1) * PAGE_LIMIT + 1
+				: (pageBlock + 1) * PAGE_LIMIT + 1
+		);
 	}, [currentPage, pageBlock]);
 
 	useEffect(() => {
@@ -88,7 +90,7 @@ const HomeView = () => {
 				<button className={styles.btn} disabled={currentPage <= 1} onClick={moveToFirstPage}>
 					FIRST
 				</button>
-				<button className={styles.btn} disabled={currentPage <= 1} onClick={moveToPrevPage}>
+				<button className={styles.btn} disabled={pageBlock <= 0} onClick={moveToPrevBlock}>
 					PREV
 				</button>
 				{PAGES.map((page) => (
@@ -101,7 +103,11 @@ const HomeView = () => {
 						{page}
 					</button>
 				))}
-				<button className={styles.btn} disabled={currentPage >= MAX_POST_SIZE} onClick={moveToNextPage}>
+				<button
+					className={styles.btn}
+					disabled={pageBlock >= Math.ceil(MAX_POST_SIZE / PAGE_LIMIT) - 1}
+					onClick={moveToNextBlock}
+				>
 					NEXT
 				</button>
 				<button className={styles.btn} disabled={currentPage >= MAX_POST_SIZE} onClick={moveToLastPage}>
